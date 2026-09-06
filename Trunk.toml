@@ -1,0 +1,15 @@
+[build]
+target  = "index.html"
+dist    = "dist"
+release = false
+
+[serve]
+address = "127.0.0.1"
+port    = 8080
+open    = false
+
+# wasm-opt runs on `trunk build --release` only.
+[[hooks]]
+stage   = "post_build"
+command = "sh"
+command_arguments = ["-c", "echo 'built ->' $TRUNK_STAGING_DIR"]

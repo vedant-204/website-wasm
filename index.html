@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vedantdev Katyayan — Orbital Work Map</title>
+<meta name="description" content="Engineer across backend, infrastructure and applied AI. An orbital map of five roles, three shipped products and the stack behind them.">
+<meta property="og:title" content="Vedantdev Katyayan">
+<meta property="og:description" content="Every role, product and skill is a body. Mass is hours.">
+<meta property="og:type" content="profile">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+
+<link data-trunk rel="rust" data-wasm-opt="z">
+<link data-trunk rel="css" href="assets/style.css">
+</head>
+<body>
+
+<main class="stage">
+  <canvas id="sky" aria-label="Orbital map of Vedantdev Katyayan's work"></canvas>
+
+  <header class="masthead">
+    <p class="eyebrow">Vedantdev Katyayan · Delhi, IN</p>
+    <h1>Orbital<br>Work Map</h1>
+    <p class="standfirst">Every role, product and skill is a body. Mass is hours. Recent captures ride eccentric orbits.</p>
+  </header>
+
+  <div class="hud">
+    <div class="stats">
+      <div class="stat"><b>5</b><span>Roles</span></div>
+      <div class="stat"><b>33k</b><span>LOC solo</span></div>
+      <div class="stat"><b>150+</b><span>Brands</span></div>
+    </div>
+    <div class="ctrls">
+      <button class="btn" id="speed">1×</button>
+      <button class="btn" id="orbits" aria-pressed="true">Orbits</button>
+      <button class="btn" id="toggle">Pause</button>
+    </div>
+  </div>
+
+  <!-- Filled by Rust on selection. Static fallback keeps the page useful
+       before wasm boots and if it fails to load. -->
+  <section class="readout" id="readout" aria-live="polite">
+    <div class="r-top"><p class="r-name">NewEngen</p><span class="r-when">Sep 2024 — now</span></div>
+    <p class="r-role">Software Engineer, AI Platform</p>
+  </section>
+
+  <div class="legend">
+    <div class="lg"><span class="dot" style="background:#F2A93B"></span>Employment</div>
+    <div class="lg"><span class="dot" style="background:#5CC7D8"></span>Shipped product</div>
+    <div class="lg"><span class="dot" style="background:#A78BFA"></span>Origin</div>
+    <div class="lg"><span class="dot" style="background:#F2726F"></span>Recent capture</div>
+    <div class="lg"><span class="dot" style="background:#7FD1A4"></span>Skill belt</div>
+  </div>
+
+  <p class="hint">Hover to scan · click to lock</p>
+</main>
+
+<!-- ===================================================================
+     Crawlable layer. A canvas is invisible to search engines and to ATS
+     scrapers, so the same content lives here as real HTML. Keep in sync
+     with src/data.rs — see the TODO in CLAUDE.md about generating it.
+     =================================================================== -->
+<section class="resume">
+  <h2>Work experience</h2>
+
+  <article>
+    <h3>NewEngen <span>Software Engineer, AI Platform · Sep 2024 — present</span></h3>
+    <ul>
+      <li>Designed and shipped <strong>LIFT AI</strong>, a proactive marketing-intelligence platform turning Google Ads, Meta and Shopify data into interactive analyst-grade reports.</li>
+      <li>Built <strong>LIFT AI MFE</strong>, the micro-frontend shell hosting the platform inside NewEngen's existing app, with live SSE streaming.</li>
+      <li>Architected a Redis-backed distributed concurrency layer keeping parallel agent sessions reliable across a multi-pod Kubernetes deployment.</li>
+      <li>Owned delivery of a data taxonomy tool serving <strong>150+ international brands</strong>.</li>
+    </ul>
+  </article>
+
+  <article>
+    <h3>GreenLiving LLC <span>Founding Software Engineer · May — Aug 2024</span></h3>
+    <ul>
+      <li>First engineer on the product: founders' requirements from whiteboard to deployed application.</li>
+      <li>FastAPI backend, Figma to production ReactJS, end-to-end AWS deployment with Docker and CI/CD.</li>
+    </ul>
+  </article>
+
+  <article>
+    <h3>Reliable AI <span>Backend and DevOps Engineering Intern · Feb — Jun 2024</span></h3>
+    <ul>
+      <li>Backend infrastructure in NestJS with Kafka for real-time streaming and Grafana for BI.</li>
+      <li>Cut AWS infrastructure cost 30% via optimised deployment pipelines and resource scaling.</li>
+    </ul>
+  </article>
+
+  <article>
+    <h3>UpGrad <span>DevOps Consultant · Oct 2023 — Feb 2024</span></h3>
+    <ul><li>Advised engineering teams on CI/CD, cloud-native deployment and Agile adoption.</li></ul>
+  </article>
+
+  <article>
+    <h3>Traveey <span>Founding Backend and DevOps Engineer (Intern) · Apr — Aug 2023</span></h3>
+    <ul><li>Core backend services for a fast-scaling travel-tech startup: secure password hashing, notification services, CI/CD on GitHub Actions, EC2 deployment.</li></ul>
+  </article>
+
+  <h2>Selected projects</h2>
+
+  <article>
+    <h3>Lia <span>Local-first personal AI system · 2025 — present</span></h3>
+    <ul>
+      <li>33k lines of Python, built solo: hub service with ten tool packages and an append-only Postgres event log with semantic recall.</li>
+      <li>Capability-based permission engine graded by reversibility.</li>
+    </ul>
+  </article>
+
+  <article>
+    <h3>Dawnn <span>AI life OS · 2025 — present</span></h3>
+    <ul><li>React Native / Expo, FastAPI, Supabase, Claude with model routing and Mem0 for longitudinal memory.</li></ul>
+  </article>
+
+  <h2>Education</h2>
+  <article>
+    <h3>Indian Institute of Information Technology, Bhopal <span>B.Tech · Dec 2021 — Jun 2025</span></h3>
+    <ul><li>President, GNU/Linux Users Club. Ran 10+ workshops on system design and backend architecture.</li></ul>
+  </article>
+
+  <h2>Contact</h2>
+  <p><a href="mailto:katyayana2003@gmail.com">katyayana2003@gmail.com</a></p>
+</section>
+
+<script type="module">
+  // Trunk exposes the wasm exports on window.wasmBindings once init resolves.
+  window.orbitalSelect = (id) => {
+    if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+  };
+
+  const ready = () => window.wasmBindings;
+  const wait = setInterval(() => {
+    if (!ready()) return;
+    clearInterval(wait);
+    const w = window.wasmBindings;
+
+    const hash = location.hash.slice(1);
+    if (hash) w.select_by_id(hash);
+
+    const speeds = [1, 2, 4, 0.35];
+    let si = 0;
+    const speed = document.getElementById('speed');
+    speed.onclick = () => {
+      si = (si + 1) % speeds.length;
+      w.set_speed(speeds[si]);
+      speed.textContent = (speeds[si] === 0.35 ? '0.3' : speeds[si]) + '×';
+    };
+
+    const toggle = document.getElementById('toggle');
+    toggle.onclick = () => { toggle.textContent = w.toggle_running() ? 'Pause' : 'Resume'; };
+
+    const orbits = document.getElementById('orbits');
+    orbits.onclick = () => orbits.setAttribute('aria-pressed', String(w.toggle_orbits()));
+  }, 40);
+</script>
+</body>
+</html>

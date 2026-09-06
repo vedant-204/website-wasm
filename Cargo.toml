@@ -1,0 +1,29 @@
+[package]
+name    = "orbital"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.79"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen             = "0.2"
+js-sys                   = "0.3"
+console_error_panic_hook = "0.1"
+
+[dependencies.web-sys]
+version  = "0.3"
+features = [
+  "Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement",
+  "CanvasRenderingContext2d", "CanvasGradient", "DomRect", "Performance",
+  "EventTarget", "PointerEvent", "MouseEvent", "CssStyleDeclaration",
+]
+
+# Keep the binary small enough for a homepage. Target < 400 KB gzipped.
+[profile.release]
+opt-level     = "z"
+lto           = true
+codegen-units = 1
+panic         = "abort"
+strip         = true
