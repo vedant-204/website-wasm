@@ -135,3 +135,17 @@ build.rs TODO is resolved, these are duplicated.
   for every label, readout and number. Labels are uppercase with wide tracking.
 - British spelling in prose. Copy is plain and specific — no "passionate about",
   no "innovative solutions".
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub (`vedant-204/website-wasm`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.

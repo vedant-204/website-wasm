@@ -4,3 +4,8 @@ Cargo.lock
 .DS_Store
 node_modules
 .wrangler
+
+.agent/gh-token
+.agent/logs/
+.agent/smtp
+.agent/last-run.md

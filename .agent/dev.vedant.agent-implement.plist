@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.vedant.agent-implement</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/vedant/DEV-2/website-p/.agent/run.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/vedant/DEV-2/website-p</string>
+
+  <key>StandardOutPath</key>
+  <string>/Users/vedant/DEV-2/website-p/.agent/logs/launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/vedant/DEV-2/website-p/.agent/logs/launchd.err</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
