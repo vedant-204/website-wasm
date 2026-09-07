@@ -21,41 +21,12 @@
 <main class="stage">
   <canvas id="sky" aria-label="Orbital map of Vedantdev Katyayan's work"></canvas>
 
-  <header class="masthead">
-    <p class="eyebrow">Vedantdev Katyayan · Delhi, IN</p>
-    <h1>Orbital<br>Work Map</h1>
-    <p class="standfirst">Every role, product and skill is a body. Mass is hours. Recent captures ride eccentric orbits.</p>
-  </header>
-
-  <div class="hud">
-    <div class="stats">
-      <div class="stat"><b>5</b><span>Roles</span></div>
-      <div class="stat"><b>33k</b><span>LOC solo</span></div>
-      <div class="stat"><b>150+</b><span>Brands</span></div>
-    </div>
-    <div class="ctrls">
-      <button class="btn" id="speed">1×</button>
-      <button class="btn" id="orbits" aria-pressed="true">Orbits</button>
-      <button class="btn" id="toggle">Pause</button>
-    </div>
-  </div>
-
   <!-- Filled by Rust on selection. Static fallback keeps the page useful
        before wasm boots and if it fails to load. -->
   <section class="readout" id="readout" aria-live="polite">
     <div class="r-top"><p class="r-name">NewEngen</p><span class="r-when">Sep 2024 — now</span></div>
     <p class="r-role">Software Engineer, AI Platform</p>
   </section>
-
-  <div class="legend">
-    <div class="lg"><span class="dot" style="background:#F2A93B"></span>Employment</div>
-    <div class="lg"><span class="dot" style="background:#5CC7D8"></span>Shipped product</div>
-    <div class="lg"><span class="dot" style="background:#A78BFA"></span>Origin</div>
-    <div class="lg"><span class="dot" style="background:#F2726F"></span>Recent capture</div>
-    <div class="lg"><span class="dot" style="background:#7FD1A4"></span>Skill belt</div>
-  </div>
-
-  <p class="hint">Hover to scan · click to lock</p>
 </main>
 
 <!-- ===================================================================
@@ -128,7 +99,6 @@
 </section>
 
 <script type="module">
-  // Trunk exposes the wasm exports on window.wasmBindings once init resolves.
   window.orbitalSelect = (id) => {
     if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
   };
@@ -137,25 +107,8 @@
   const wait = setInterval(() => {
     if (!ready()) return;
     clearInterval(wait);
-    const w = window.wasmBindings;
-
     const hash = location.hash.slice(1);
-    if (hash) w.select_by_id(hash);
-
-    const speeds = [1, 2, 4, 0.35];
-    let si = 0;
-    const speed = document.getElementById('speed');
-    speed.onclick = () => {
-      si = (si + 1) % speeds.length;
-      w.set_speed(speeds[si]);
-      speed.textContent = (speeds[si] === 0.35 ? '0.3' : speeds[si]) + '×';
-    };
-
-    const toggle = document.getElementById('toggle');
-    toggle.onclick = () => { toggle.textContent = w.toggle_running() ? 'Pause' : 'Resume'; };
-
-    const orbits = document.getElementById('orbits');
-    orbits.onclick = () => orbits.setAttribute('aria-pressed', String(w.toggle_orbits()));
+    if (hash) window.wasmBindings.select_by_id(hash);
   }, 40);
 </script>
 </body>

@@ -33,7 +33,6 @@ struct App {
     selected: Option<usize>,
     hovered: Option<usize>,
     pointer: (f32, f32),
-    show_orbits: bool,
     running: bool,
     last: f64,
 }
@@ -72,7 +71,7 @@ impl App {
             selected: self.selected,
             hovered: self.hovered,
             pointer: self.pointer,
-            show_orbits: self.show_orbits,
+            show_orbits: true,
         };
         self.renderer.draw(&scene);
     }
@@ -138,7 +137,6 @@ pub fn start() -> Result<(), JsValue> {
         selected: Some(0),
         hovered: None,
         pointer: (-9999.0, -9999.0),
-        show_orbits: true,
         running: true,
         last: now(),
     }));
@@ -213,34 +211,6 @@ pub fn start() -> Result<(), JsValue> {
     window().request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref())?;
 
     Ok(())
-}
-
-// ---- controls called from the HTML buttons ----
-
-#[wasm_bindgen]
-pub fn set_speed(speed: f32) {
-    with_app(|app| app.sim.speed = speed);
-}
-
-#[wasm_bindgen]
-pub fn toggle_running() -> bool {
-    let mut state = false;
-    with_app(|app| {
-        app.running = !app.running;
-        app.last = now();
-        state = app.running;
-    });
-    state
-}
-
-#[wasm_bindgen]
-pub fn toggle_orbits() -> bool {
-    let mut state = false;
-    with_app(|app| {
-        app.show_orbits = !app.show_orbits;
-        state = app.show_orbits;
-    });
-    state
 }
 
 /// Lock a body by id — used for deep links (`/#lia`).
