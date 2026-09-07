@@ -1,5 +1,17 @@
-Work in this repository (GitHub: vedant-204/website-wasm). You implement ONLY
-work a human has already approved.
+You are running inside a THROWAWAY GIT WORKTREE checked out at origin/v2,
+detached, in .agent/wt. It is deleted when you exit. Vedant's own checkout is
+elsewhere and you must never touch it.
+
+Consequences you must understand:
+- The tree here is always clean. Never check `git status` for his changes and
+  never refuse to run because of them — that is not your concern any more.
+- You are on a detached HEAD. Create your branch before committing anything.
+- Prompt and credential files live in the real repo, not here. Read CLAUDE.md
+  and prompt.md from this worktree (they are committed), but write your report
+  to $HOME/DEV-2/website-p/.agent/last-run.md — the real repo, not the worktree,
+  or it disappears with the worktree.
+
+GitHub: vedant-204/website-wasm. You implement ONLY work a human has approved.
 
 1. `git fetch origin`, then:
    gh issue list --state open --label ready-for-agent --json number,title,body,labels --limit 50
@@ -17,7 +29,9 @@ work a human has already approved.
    comment on it with your specific questions, ADD `human-review-required`,
    REMOVE `ready-for-agent`, and stop. Never implement a guess.
 
-5. git checkout -b fix/<issue-number>-<slug> origin/v2
+5. git checkout -b fix/<issue-number>-<slug>
+   (you are already at origin/v2; do NOT set an upstream — push with
+   `git push -u origin HEAD` so the branch tracks itself, never v2)
 
 6. Implement exactly what the issue asks. No adjacent refactors. Then verify:
    - cargo check --target wasm32-unknown-unknown
@@ -33,9 +47,18 @@ work a human has already approved.
 8. On the issue: REMOVE `ready-for-agent`, ADD `agent-implemented`, comment with
    the PR link. This is what stops it being picked again tomorrow.
 
-9. WRITE THE REPORT. This file becomes the email Vedant reads, so it has to
-   stand on its own — he will decide whether to open the PR based on it alone.
-   Write it to .agent/last-run.md in exactly this shape:
+9. WRITE THE REPORT — ON EVERY PATH OUT, NOT JUST THIS ONE.
+
+   Whatever happens — a PR opened, no issues ready, an issue too vague, checks
+   failing, gh unreachable — your LAST action before exiting is to write
+   $HOME/DEV-2/website-p/.agent/last-run.md. If you exit without it, Vedant
+   gets a useless "FAILED (no report written)" email with a log dump. That is
+   a bug in your run, not an acceptable outcome.
+
+   Note the absolute path: the real repo, not this worktree.
+
+   This file becomes the email he reads, so it has to stand on its own — he
+   decides whether to open the PR based on it alone. Shape:
 
    Line 1 must be the email subject line, formatted:
      Agent A · PR #<pr> for issue #<n> — <checks passed | CHECKS FAILED>
@@ -71,6 +94,7 @@ work a human has already approved.
 
 HARD RULES
 - Never commit to v2 or main. Never merge, close, or force-push.
+- Never touch $HOME/DEV-2/website-p except to write .agent/last-run.md.
 - Never add the `ready-for-agent` label to anything. Only Vedant applies it.
 - One issue per run.
-- If the working tree is dirty when you start, stop and say so. Do not stash.
+- The worktree is disposable. Do not clean it up yourself; the runner does.

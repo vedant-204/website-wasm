@@ -10,3 +10,4 @@ node_modules
 .agent/smtp
 .agent/last-run.md
 .agents/
+.agent/wt/
