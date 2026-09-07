@@ -9,3 +9,4 @@ node_modules
 .agent/logs/
 .agent/smtp
 .agent/last-run.md
+.agents/
