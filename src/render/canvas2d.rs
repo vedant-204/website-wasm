@@ -5,7 +5,7 @@ use super::{Renderer, Scene};
 use crate::data::{BODIES, SKILLS, SKILL_COLORS};
 use crate::sim::FLAT;
 
-const VOID: &str = "#04060E";
+const VOID: &str = "#000";
 const TAU: f64 = std::f64::consts::TAU;
 
 /// Single choke point for the web-sys style setters. If you bump web-sys and
@@ -68,50 +68,18 @@ impl Canvas2d {
 
     fn core(&self, sim: &crate::sim::Sim) {
         let ctx = &self.ctx;
-        let (cx, cy, t) = (sim.cx as f64, sim.cy as f64, sim.t as f64);
-        let pulse = 1.0 + (t * 1.6).sin() * 0.05;
+        let (cx, cy) = (sim.cx as f64, sim.cy as f64);
 
-        if let Ok(g) = ctx.create_radial_gradient(cx, cy, 0.0, cx, cy, 64.0 * pulse) {
-            let _ = g.add_color_stop(0.0, "rgba(255,244,222,0.90)");
-            let _ = g.add_color_stop(0.22, "rgba(242,169,59,0.42)");
-            let _ = g.add_color_stop(1.0, "rgba(242,169,59,0)");
-            ctx.set_fill_style_canvas_gradient(&g);
-            ctx.begin_path();
-            let _ = ctx.arc(cx, cy, 64.0 * pulse, 0.0, TAU);
-            ctx.fill();
-        }
-
-        ctx.save();
-        let _ = ctx.translate(cx, cy);
-        stroke(ctx, "rgba(242,169,59,0.55)");
-        ctx.set_line_width(1.0);
-        for i in 0..3 {
-            let r = 16.0 + i as f64 * 8.0;
-            let rot = t * if i % 2 == 0 { 0.7 } else { -0.5 } + i as f64;
-            ctx.begin_path();
-            let _ = ctx.arc(0.0, 0.0, r, rot, rot + std::f64::consts::PI * (1.1 - i as f64 * 0.22));
-            ctx.stroke();
-        }
-        let _ = ctx.rotate(t * 0.18);
-        stroke(ctx, "rgba(255,235,200,0.75)");
-        ctx.set_line_width(1.4);
+        // Small solid dot at the origin.
+        fill(ctx, "rgba(237,234,226,0.70)");
         ctx.begin_path();
-        for i in 0..6 {
-            let a = i as f64 / 6.0 * TAU;
-            let (x, y) = (a.cos() * 10.0, a.sin() * 10.0);
-            if i == 0 { ctx.move_to(x, y) } else { ctx.line_to(x, y) }
-        }
-        ctx.close_path();
-        ctx.stroke();
-        ctx.restore();
+        let _ = ctx.arc(cx, cy, 3.0, 0.0, TAU);
+        ctx.fill();
 
         ctx.set_text_align("center");
         ctx.set_font("600 11px 'IBM Plex Mono', monospace");
         fill(ctx, "rgba(237,234,226,0.95)");
-        let _ = ctx.fill_text("VEDANTDEV KATYAYAN", cx, cy + 50.0);
-        ctx.set_font("400 9.5px 'IBM Plex Mono', monospace");
-        fill(ctx, "#5A6479");
-        let _ = ctx.fill_text("DELHI, IN · BARYCENTRE", cx, cy + 64.0);
+        let _ = ctx.fill_text("VEDANTDEV KATYAYAN", cx, cy + 22.0);
     }
 }
 
