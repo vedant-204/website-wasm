@@ -3,13 +3,10 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
 use super::{Renderer, Scene};
 use crate::data::{BODIES, SKILLS, SKILL_COLORS};
-use crate::sim::FLAT;
 
 const VOID: &str = "#000";
 const TAU: f64 = std::f64::consts::TAU;
 
-/// Single choke point for the web-sys style setters. If you bump web-sys and
-/// the build breaks here, this is the only place to fix.
 fn fill(ctx: &CanvasRenderingContext2d, css: &str) {
     ctx.set_fill_style_str(css);
 }
@@ -17,7 +14,6 @@ fn stroke(ctx: &CanvasRenderingContext2d, css: &str) {
     ctx.set_stroke_style_str(css);
 }
 
-/// Append an 8-bit alpha to a "#RRGGBB" literal.
 fn alpha(hex: &str, a: f32) -> String {
     format!("{}{:02X}", hex, (a.clamp(0.0, 1.0) * 255.0) as u8)
 }
@@ -39,8 +35,6 @@ impl Canvas2d {
     }
 
     fn seed_stars(&mut self) {
-        // Deterministic scatter — no rand dependency, and the field is stable
-        // across reloads so the page always screenshots the same.
         self.stars.clear();
         let mut s: u32 = 0x2545F491;
         let mut next = || {
@@ -69,13 +63,10 @@ impl Canvas2d {
     fn core(&self, sim: &crate::sim::Sim) {
         let ctx = &self.ctx;
         let (cx, cy) = (sim.cx as f64, sim.cy as f64);
-
-        // Small solid dot at the origin.
         fill(ctx, "rgba(237,234,226,0.70)");
         ctx.begin_path();
         let _ = ctx.arc(cx, cy, 3.0, 0.0, TAU);
         ctx.fill();
-
         ctx.set_text_align("center");
         ctx.set_font("600 11px 'IBM Plex Mono', monospace");
         fill(ctx, "rgba(237,234,226,0.95)");
@@ -96,18 +87,43 @@ impl Renderer for Canvas2d {
         let sim = scene.sim;
         self.background();
 
-        // Skill belt.
         for (i, sk) in SKILLS.iter().enumerate() {
             let st = &sim.skills[i];
             let r = st.radius * sim.scale;
             let x = sim.cx + st.angle.cos() * r;
-            let y = sim.cy + st.angle.sin() * r * FLAT;
+            let y = sim.cy + st.angle.sin() * r * sim.flat();
             let near = ((x - scene.pointer.0).powi(2) + (y - scene.pointer.1).powi(2)).sqrt() < 26.0;
             let color = SKILL_COLORS[sk.group];
-            fill(ctx, &if near { color.to_string() } else { alpha(color, 0.4) });
-            ctx.begin_path();
-            let _ = ctx.arc(x as f64, y as f64, if near { 3.2 } else { 1.9 }, 0.0, TAU);
-            ctx.fill();
+            let period = 22.0 + ((i * 17 + 11) % 23) as f32;
+            let phase = ((i * 73 + 37) % 100) as f32 / 100.0 * period;
+            let t_in = (sim.t + phase) % period;
+            let dist = (t_in - period * 0.5).abs();
+            let pw = period * 0.07;
+            let bright = ((1.0 - dist / pw).clamp(0.0, 1.0)).powi(2);
+            if !near {
+                let base_a = 0.3 + bright * 0.7;
+                let dot_r = (1.6 + bright * 0.6) as f64;
+                fill(ctx, &alpha(color, base_a));
+                ctx.begin_path();
+                let _ = ctx.arc(x as f64, y as f64, dot_r, 0.0, TAU);
+                ctx.fill();
+                if bright > 0.7 {
+                    fill(ctx, &format!("rgba(255,255,255,{:.2})", (bright - 0.7) * 1.5));
+                    ctx.begin_path();
+                    let _ = ctx.arc(x as f64, y as f64, dot_r * 0.45, 0.0, TAU);
+                    ctx.fill();
+                    let label_a = ((bright - 0.7) / 0.3).clamp(0.0, 1.0);
+                    ctx.set_font("500 9px 'IBM Plex Mono', monospace");
+                    ctx.set_text_align("center");
+                    fill(ctx, &format!("rgba(237,234,226,{:.2})", label_a * 0.85));
+                    let _ = ctx.fill_text(&sk.name.to_uppercase(), x as f64, (y - 8.0) as f64);
+                }
+            } else {
+                fill(ctx, color);
+                ctx.begin_path();
+                let _ = ctx.arc(x as f64, y as f64, 3.2, 0.0, TAU);
+                ctx.fill();
+            }
             if near {
                 ctx.set_font("500 10px 'IBM Plex Mono', monospace");
                 ctx.set_text_align("center");
@@ -116,71 +132,69 @@ impl Renderer for Canvas2d {
             }
         }
 
-        // Orbit paths.
         if scene.show_orbits {
-            ctx.set_line_width(1.0);
             for (i, body) in BODIES.iter().enumerate() {
                 let on = scene.selected == Some(i);
-                stroke(ctx, &if on { alpha(body.kind.color(), 0.33) } else { "rgba(150,170,210,0.09)".into() });
-                ctx.begin_path();
-                for k in 0..=80 {
-                    let (x, y) = sim.place(body, k as f32 / 80.0 * std::f32::consts::TAU);
-                    if k == 0 { ctx.move_to(x as f64, y as f64) } else { ctx.line_to(x as f64, y as f64) }
+                let color = if on { alpha(body.kind.color(), 0.33) } else { "rgba(150,170,210,0.09)".into() };
+                fill(ctx, &color);
+                for k in 0..160 {
+                    if k % 4 < 2 { continue; }
+                    let (x, y) = sim.place(body, k as f32 / 160.0 * std::f32::consts::TAU);
+                    ctx.begin_path();
+                    let _ = ctx.arc(x as f64, y as f64, 0.6, 0.0, TAU);
+                    ctx.fill();
                 }
-                ctx.close_path();
-                ctx.stroke();
             }
         }
 
-        // Trails.
-        ctx.set_line_cap("round");
-        for (i, body) in BODIES.iter().enumerate() {
-            let st = &sim.bodies[i];
-            let n = st.trail.len();
-            for k in 1..n {
-                let f = k as f32 / n as f32;
-                stroke(ctx, &alpha(body.kind.color(), f * f * 0.6));
-                ctx.set_line_width((f * st.radius * 0.55) as f64);
-                ctx.begin_path();
-                ctx.move_to(st.trail[k - 1].0 as f64, st.trail[k - 1].1 as f64);
-                ctx.line_to(st.trail[k].0 as f64, st.trail[k].1 as f64);
-                ctx.stroke();
-            }
-        }
+        let mut order: Vec<usize> = (0..BODIES.len()).collect();
+        order.sort_by(|&a, &b| {
+            sim.bodies[b].z.partial_cmp(&sim.bodies[a].z).unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        self.core(sim);
-
-        // Bodies, moons, labels.
         ctx.set_text_align("center");
-        for (i, body) in BODIES.iter().enumerate() {
+        let mut core_drawn = false;
+        for &i in &order {
+            let body = &BODIES[i];
             let st = &sim.bodies[i];
+
+            if !core_drawn && st.z <= 0.0 {
+                self.core(sim);
+                core_drawn = true;
+            }
+
             let on = scene.selected == Some(i) || scene.hovered == Some(i);
             let color = body.kind.color();
-            let (x, y, r) = (st.x as f64, st.y as f64, st.radius as f64);
+            let depth_norm = (st.z / sim.scale).clamp(-1.0, 1.0);
+            let fade = 1.0 - depth_norm.max(0.0) * 0.6;
+            let size_scale = 1.0 - depth_norm.max(0.0) * 0.3;
+            let (x, y) = (st.x as f64, st.y as f64);
+            let r = (st.radius * size_scale) as f64;
 
             for (j, moon) in body.moons.iter().enumerate() {
                 let mr = (moon.dist * sim.scale) as f64;
                 let ang = st.moon_angles[j] as f64;
                 let mx = x + ang.cos() * mr;
-                let my = y + ang.sin() * mr * FLAT as f64;
+                let my = y + ang.sin() * mr * sim.flat() as f64;
                 stroke(ctx, if on { "rgba(150,170,210,0.20)" } else { "rgba(150,170,210,0.07)" });
                 ctx.set_line_width(1.0);
                 ctx.begin_path();
-                let _ = ctx.ellipse(x, y, mr, mr * FLAT as f64, 0.0, 0.0, TAU);
+                let _ = ctx.ellipse(x, y, mr, mr * sim.flat() as f64, 0.0, 0.0, TAU);
                 ctx.stroke();
-                fill(ctx, &alpha(color, 0.85));
+                fill(ctx, &alpha(color, 0.85 * fade));
                 ctx.begin_path();
                 let _ = ctx.arc(mx, my, moon.size as f64, 0.0, TAU);
                 ctx.fill();
                 if on {
                     ctx.set_font("400 9.5px 'IBM Plex Mono', monospace");
-                    fill(ctx, "rgba(237,234,226,0.90)");
+                    fill(ctx, &format!("rgba(237,234,226,{:.2})", 0.90 * fade));
                     let _ = ctx.fill_text(&moon.name.to_uppercase(), mx, my - 9.0);
                 }
             }
 
             if let Ok(g) = ctx.create_radial_gradient(x, y, 0.0, x, y, r * 4.0) {
-                let _ = g.add_color_stop(0.0, &alpha(color, if on { 0.53 } else { 0.27 }));
+                let ga = if on { 0.53 } else { 0.27 };
+                let _ = g.add_color_stop(0.0, &alpha(color, ga * fade));
                 let _ = g.add_color_stop(1.0, &alpha(color, 0.0));
                 ctx.set_fill_style_canvas_gradient(&g);
                 ctx.begin_path();
@@ -188,11 +202,11 @@ impl Renderer for Canvas2d {
                 ctx.fill();
             }
 
-            fill(ctx, color);
+            fill(ctx, &alpha(color, fade));
             ctx.begin_path();
             let _ = ctx.arc(x, y, r, 0.0, TAU);
             ctx.fill();
-            fill(ctx, "rgba(255,255,255,0.55)");
+            fill(ctx, &format!("rgba(255,255,255,{:.2})", 0.55 * fade));
             ctx.begin_path();
             let _ = ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0.0, TAU);
             ctx.fill();
@@ -210,8 +224,16 @@ impl Renderer for Canvas2d {
             } else {
                 "400 10.5px 'IBM Plex Mono', monospace"
             });
-            fill(ctx, if on { "rgba(237,234,226,1)" } else { "rgba(150,160,184,0.82)" });
+            let label_a = if on { 1.0 } else { (0.82 * fade).max(0.15) };
+            fill(ctx, &if on {
+                format!("rgba(237,234,226,{:.2})", label_a)
+            } else {
+                format!("rgba(150,160,184,{:.2})", label_a)
+            });
             let _ = ctx.fill_text(&body.name.to_uppercase(), x, y - r - 11.0);
+        }
+        if !core_drawn {
+            self.core(sim);
         }
     }
 }
