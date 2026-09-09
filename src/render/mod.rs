@@ -12,6 +12,8 @@ pub struct Scene<'a> {
     pub hovered: Option<usize>,
     pub pointer: (f32, f32),
     pub show_orbits: bool,
+    pub zoom: f32,
+    pub zoom_level: u8,
 }
 
 pub trait Renderer {

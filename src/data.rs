@@ -82,26 +82,6 @@ pub const BODIES: &[Body] = &[
         ],
     },
     Body {
-        id: "lia",
-        name: "Lia",
-        role: "Local-first personal AI · solo",
-        when: "2025 — now",
-        kind: Kind::Product,
-        mass: 7.8,
-        a: 0.28,
-        e: 0.16,
-        tilt: 5.6,
-        phase: 4.2,
-        inclination: 1.20,
-        ascending_node: 0.8,
-        bullets: &[
-            "33k lines written alone: hub service with ten tool packages and an append-only Postgres event log with semantic recall for lifelong memory.",
-            "Capability-based permission engine graded by reversibility — read, write and shell actions require confirmation in proportion to how hard they are to undo.",
-        ],
-        chips: &["Python", "PostgreSQL", "device mesh", "RAG"],
-        moons: &[Moon { name: "Device mesh", dist: 0.048, speed: 2.2, size: 3.4 }],
-    },
-    Body {
         id: "greenliving",
         name: "GreenLiving",
         role: "Founding Software Engineer",
@@ -119,25 +99,6 @@ pub const BODIES: &[Body] = &[
             "Built the FastAPI backend, translated Figma into production ReactJS, and ran end-to-end AWS deployment with Docker and CI/CD without a dedicated ops team.",
         ],
         chips: &["FastAPI", "ReactJS", "ViteJS", "Chakra UI", "AWS", "Docker"],
-        moons: &[],
-    },
-    Body {
-        id: "dawnn",
-        name: "Dawnn",
-        role: "Solo product · AI life OS",
-        when: "2025 — now",
-        kind: Kind::Product,
-        mass: 5.4,
-        a: 0.48,
-        e: 0.13,
-        tilt: 0.9,
-        phase: 0.9,
-        inclination: 1.15,
-        ascending_node: 3.5,
-        bullets: &[
-            "\"The only app that notices things about you that you haven't noticed yourself.\" Pivoted toward retention mechanics; live at getdawnn.app.",
-        ],
-        chips: &["React Native", "Expo", "FastAPI", "Supabase", "Mem0"],
         moons: &[],
     },
     Body {
@@ -180,25 +141,6 @@ pub const BODIES: &[Body] = &[
         moons: &[],
     },
     Body {
-        id: "rust",
-        name: "Rust / WASM",
-        role: "Recent capture",
-        when: "2026 —",
-        kind: Kind::Capture,
-        mass: 1.4,
-        a: 0.78,
-        e: 0.55,
-        tilt: 5.0,
-        phase: 1.8,
-        inclination: 1.40,
-        ascending_node: 2.0,
-        bullets: &[
-            "Newest body in the system, still on a long ellipse. An honest thing for a website to say out loud.",
-        ],
-        chips: &["wasm-bindgen", "wgpu", "trunk", "Cloudflare Workers"],
-        moons: &[],
-    },
-    Body {
         id: "traveey",
         name: "Traveey",
         role: "Founding Backend & DevOps Engineer",
@@ -217,24 +159,74 @@ pub const BODIES: &[Body] = &[
         chips: &["NestJS", "MongoDB", "GitHub Actions", "EC2"],
         moons: &[],
     },
-    Body {
-        id: "iiit",
-        name: "IIIT Bhopal",
-        role: "B.Tech · President, GNU/Linux Users Club",
-        when: "Dec 2021 — Jun 2025",
-        kind: Kind::Origin,
-        mass: 4.0,
-        a: 1.00,
-        e: 0.06,
-        tilt: 2.7,
-        phase: 2.0,
-        inclination: 0.79,
-        ascending_node: 3.0,
-        bullets: &["Ran 10+ workshops on system design and backend architecture as club president."],
-        chips: &["B.Tech", "GNU/Linux Users Club"],
+];
+
+/// Projects that orbit the core (you). Separate from employment bodies.
+pub struct CoreProject {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub role: &'static str,
+    pub when: &'static str,
+    pub kind: Kind,
+    pub mass: f32,
+    /// Orbit distance from core as a fraction of scale.
+    pub dist: f32,
+    pub speed: f32,
+    pub bullets: &'static [&'static str],
+    pub chips: &'static [&'static str],
+    pub moons: &'static [Moon],
+}
+
+pub const CORE_PROJECTS: &[CoreProject] = &[
+    CoreProject {
+        id: "lia",
+        name: "Lia",
+        role: "Local-first personal AI \u{b7} solo",
+        when: "2025 \u{2014} now",
+        kind: Kind::Product,
+        mass: 7.8,
+        dist: 0.22,
+        speed: 0.6,
+        bullets: &[
+            "33k lines written alone: hub service with ten tool packages and an append-only Postgres event log with semantic recall for lifelong memory.",
+            "Capability-based permission engine graded by reversibility \u{2014} read, write and shell actions require confirmation in proportion to how hard they are to undo.",
+        ],
+        chips: &["Python", "PostgreSQL", "device mesh", "RAG"],
+        moons: &[Moon { name: "Device mesh", dist: 0.022, speed: 2.2, size: 3.4 }],
+    },
+    CoreProject {
+        id: "dawnn",
+        name: "Dawnn",
+        role: "Solo product \u{b7} AI life OS",
+        when: "2025 \u{2014} now",
+        kind: Kind::Product,
+        mass: 5.4,
+        dist: 0.35,
+        speed: 0.4,
+        bullets: &[
+            "\u{201c}The only app that notices things about you that you haven\u{2019}t noticed yourself.\u{201d} Pivoted toward retention mechanics; live at getdawnn.app.",
+        ],
+        chips: &["React Native", "Expo", "FastAPI", "Supabase", "Mem0"],
         moons: &[],
     },
 ];
+
+pub struct CoreProfile {
+    pub education: &'static [&'static str],
+    pub beliefs: &'static [&'static str],
+}
+
+pub const CORE_PROFILE: CoreProfile = CoreProfile {
+    education: &[
+        "B.Tech, IIIT Bhopal \u{2014} Dec 2021 \u{2013} Jun 2025",
+        "President, GNU/Linux Users Club \u{2014} ran workshops on system design and backend architecture",
+    ],
+    beliefs: &[
+        "Ship the smallest thing that teaches you something. If you are not embarrassed by the first version, you waited too long.",
+        "The best infrastructure is the kind nobody notices. If ops is visible, it is broken.",
+        "AI tools are levers, not replacements. The engineer who understands the problem still writes the spec.",
+    ],
+};
 
 /// Skill belt. `group` indexes SKILL_COLORS.
 pub struct Skill {

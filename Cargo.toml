@@ -18,6 +18,7 @@ features = [
   "Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement",
   "CanvasRenderingContext2d", "CanvasGradient", "DomRect", "Performance",
   "EventTarget", "PointerEvent", "MouseEvent", "CssStyleDeclaration",
+  "KeyboardEvent", "DomTokenList",
 ]
 
 # Keep the binary small enough for a homepage. Target < 400 KB gzipped.

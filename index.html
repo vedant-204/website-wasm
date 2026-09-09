@@ -13,20 +13,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
 
-<link data-trunk rel="rust" data-wasm-opt="z">
+<link data-trunk rel="rust" data-wasm-opt="0">
 <link data-trunk rel="css" href="assets/style.css">
 </head>
 <body>
 
-<main class="stage">
+<main class="stage" id="stage">
   <canvas id="sky" aria-label="Orbital map of Vedantdev Katyayan's work"></canvas>
 
-  <!-- Filled by Rust on selection. Static fallback keeps the page useful
-       before wasm boots and if it fails to load. -->
-  <section class="readout" id="readout" aria-live="polite">
-    <div class="r-top"><p class="r-name">NewEngen</p><span class="r-when">Sep 2024 — now</span></div>
-    <p class="r-role">Software Engineer, AI Platform</p>
-  </section>
+  <div class="overlay" id="overlay">
+    <canvas class="blob-canvas" id="blob-canvas"></canvas>
+    <button class="ov-close" id="ov-close" aria-label="Close">&times;</button>
+    <div class="ov-content" id="ov-content" aria-live="polite">
+      <!-- Filled by Rust on click -->
+    </div>
+  </div>
+
+  <div class="zoom-hint" id="zoom-hint">ESC</div>
 </main>
 
 <!-- ===================================================================
@@ -47,6 +50,118 @@
     const hash = location.hash.slice(1);
     if (hash) window.wasmBindings.select_by_id(hash);
   }, 40);
+
+  // Ripple effect on overlay
+  (() => {
+    const ov = document.getElementById('overlay');
+    const bc = document.getElementById('blob-canvas');
+    const ctx = bc.getContext('2d');
+    const TAU = Math.PI * 2;
+    const ripples = [];
+    let raf = 0, lastSpawn = 0;
+    let mx = -999, my = -999;
+
+    // Persistent glow that follows cursor
+    let gx = -999, gy = -999;
+
+    function resize() {
+      const dpr = Math.min(devicePixelRatio, 2);
+      const w = ov.clientWidth, h = ov.clientHeight;
+      bc.width = w * dpr; bc.height = h * dpr;
+      bc.style.width = w + 'px'; bc.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function spawn(x, y) {
+      ripples.push({ x, y, r: 4, maxR: 60 + Math.random() * 80, a: 0.45, speed: 1.2 + Math.random() * 0.8 });
+      if (ripples.length > 20) ripples.shift();
+    }
+
+    function draw(t) {
+      const stage = document.getElementById('stage');
+      if (!stage.classList.contains('overlay-open')) { raf = 0; return; }
+      const w = ov.clientWidth, h = ov.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      // Smooth cursor glow follow
+      if (mx > -500) {
+        gx += (mx - gx) * 0.1;
+        gy += (my - gy) * 0.1;
+
+        // Soft ambient glow under cursor
+        const gg = ctx.createRadialGradient(gx, gy, 0, gx, gy, 90);
+        gg.addColorStop(0, 'hsla(192,80%,55%,0.12)');
+        gg.addColorStop(0.5, 'hsla(192,70%,45%,0.05)');
+        gg.addColorStop(1, 'hsla(192,60%,40%,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath();
+        ctx.arc(gx, gy, 90, 0, TAU);
+        ctx.fill();
+      }
+
+      // Draw ripples
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const rp = ripples[i];
+        rp.r += rp.speed;
+        const life = 1 - rp.r / rp.maxR;
+        if (life <= 0) { ripples.splice(i, 1); continue; }
+
+        const fade = life * life;
+        const lineW = Math.max(0.5, 2.5 * fade);
+
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, TAU);
+        ctx.strokeStyle = `hsla(192,75%,60%,${0.35 * fade})`;
+        ctx.lineWidth = lineW;
+        ctx.stroke();
+
+        // Inner brighter ring (slightly behind)
+        if (rp.r > 8) {
+          ctx.beginPath();
+          ctx.arc(rp.x, rp.y, rp.r * 0.7, 0, TAU);
+          ctx.strokeStyle = `hsla(192,80%,70%,${0.2 * fade})`;
+          ctx.lineWidth = lineW * 0.6;
+          ctx.stroke();
+        }
+
+        // Faint fill inside the ring
+        const gf = ctx.createRadialGradient(rp.x, rp.y, 0, rp.x, rp.y, rp.r);
+        gf.addColorStop(0, `hsla(192,70%,55%,${0.06 * fade})`);
+        gf.addColorStop(0.7, `hsla(192,70%,50%,${0.02 * fade})`);
+        gf.addColorStop(1, 'hsla(192,70%,50%,0)');
+        ctx.fillStyle = gf;
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, TAU);
+        ctx.fill();
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+
+    ov.addEventListener('pointermove', e => {
+      const r = ov.getBoundingClientRect();
+      mx = e.clientX - r.left; my = e.clientY - r.top;
+      if (gx < -500) { gx = mx; gy = my; }
+
+      const now = performance.now();
+      if (now - lastSpawn > 120) {
+        spawn(mx, my);
+        lastSpawn = now;
+      }
+      if (!raf) { resize(); raf = requestAnimationFrame(draw); }
+    });
+
+    ov.addEventListener('pointerleave', () => { mx = -999; my = -999; gx = -999; gy = -999; });
+    window.addEventListener('resize', () => { if (raf) resize(); });
+
+    const obs = new MutationObserver(() => {
+      const open = document.getElementById('stage').classList.contains('overlay-open');
+      if (open && !raf) { resize(); raf = requestAnimationFrame(draw); }
+      if (!open) { mx = -999; my = -999; gx = -999; gy = -999; ripples.length = 0; }
+    });
+    obs.observe(document.getElementById('stage'), {attributes: true, attributeFilter: ['class']});
+  })();
 </script>
 </body>
 </html>

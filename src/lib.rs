@@ -7,11 +7,11 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, PointerEvent};
+use web_sys::{HtmlCanvasElement, KeyboardEvent, PointerEvent};
 
-use data::BODIES;
+use data::{BODIES, CORE_PROFILE, CORE_PROJECTS};
 use render::{canvas2d::Canvas2d, Renderer, Scene};
-use sim::Sim;
+use sim::{CoreHit, Sim};
 
 #[wasm_bindgen]
 extern "C" {
@@ -23,13 +23,17 @@ struct App {
     sim: Sim,
     renderer: Canvas2d,
     canvas: HtmlCanvasElement,
-    selected: Option<usize>,
     hovered: Option<usize>,
     pointer: (f32, f32),
     running: bool,
     last: f64,
     dragging: bool,
     drag_last: (f32, f32),
+    drag_start: (f32, f32),
+    zoom: f32,
+    zoom_target: f32,
+    zoom_level: u8,
+    overlay_open: bool,
 }
 
 thread_local! {
@@ -42,6 +46,13 @@ fn window() -> web_sys::Window {
 
 fn now() -> f64 {
     window().performance().map(|p| p.now()).unwrap_or(0.0)
+}
+
+fn toggle_class(class: &str, on: bool) {
+    let Some(doc) = window().document() else { return };
+    let Some(stage) = doc.get_element_by_id("stage") else { return };
+    let cl = stage.class_list();
+    if on { let _ = cl.add_1(class); } else { let _ = cl.remove_1(class); }
 }
 
 impl App {
@@ -59,46 +70,133 @@ impl App {
         let dt = ((t - self.last) / 1000.0).min(0.05) as f32;
         self.last = t;
         self.sim.step(if self.running { dt } else { 0.0 });
+
+        // Smooth zoom interpolation
+        let diff = self.zoom_target - self.zoom;
+        if diff.abs() > 0.01 {
+            self.zoom += diff * 0.12;
+        } else {
+            self.zoom = self.zoom_target;
+        }
+
         let scene = Scene {
             sim: &self.sim,
-            selected: self.selected,
+            selected: None,
             hovered: self.hovered,
             pointer: self.pointer,
             show_orbits: true,
+            zoom: self.zoom,
+            zoom_level: self.zoom_level,
         };
         self.renderer.draw(&scene);
     }
 
-    fn select(&mut self, idx: usize) {
-        self.selected = Some(idx);
-        render_panel(idx);
+    fn open_overlay_body(&mut self, idx: usize) {
+        render_body_overlay(idx);
+        self.overlay_open = true;
+        toggle_class("overlay-open", true);
         orbital_select(BODIES[idx].id);
+    }
+
+    fn open_overlay_project(&mut self, idx: usize) {
+        render_project_overlay(idx);
+        self.overlay_open = true;
+        toggle_class("overlay-open", true);
+        orbital_select(CORE_PROJECTS[idx].id);
+    }
+
+    fn open_overlay_profile(&mut self) {
+        render_profile_overlay();
+        self.overlay_open = true;
+        toggle_class("overlay-open", true);
+    }
+
+    fn close_overlay(&mut self) {
+        self.overlay_open = false;
+        toggle_class("overlay-open", false);
+    }
+
+    fn zoom_in(&mut self) {
+        self.zoom_level = 1;
+        self.zoom_target = 1.0;
+        toggle_class("zoomed", true);
+    }
+
+    fn zoom_out(&mut self) {
+        self.zoom_level = 0;
+        self.zoom_target = 0.0;
+        toggle_class("zoomed", false);
     }
 }
 
-fn render_panel(idx: usize) {
+fn render_body_overlay(idx: usize) {
     let b = &BODIES[idx];
     let Some(doc) = window().document() else { return };
-    let Some(el) = doc.get_element_by_id("readout") else { return };
+    let Some(el) = doc.get_element_by_id("ov-content") else { return };
+
+    if let Some(ov) = doc.get_element_by_id("overlay") {
+        let _ = ov.dyn_ref::<web_sys::HtmlElement>()
+            .map(|h| h.style().set_property("--accent", b.kind.color()));
+    }
 
     let bullets: String = b.bullets.iter().map(|x| format!("<li>{}</li>", x)).collect();
-    let chips: String = b
-        .chips
-        .iter()
-        .map(|c| format!("<span class=\"chip\">{}</span>", c))
-        .collect();
+    let chips: String = b.chips.iter()
+        .map(|c| format!("<span class=\"ov-chip\">{}</span>", c)).collect();
 
-    let _ = el.set_attribute("style", &format!("--accent:{}", b.kind.color()));
     el.set_inner_html(&format!(
-        "<div class=\"r-top\"><p class=\"r-name\">{name}</p><span class=\"r-when\">{when}</span></div>\
-         <p class=\"r-role\">{role}</p>\
-         <ul class=\"r-list\">{bullets}</ul>\
-         <div class=\"chips\">{chips}</div>",
-        name = b.name,
-        when = b.when,
-        role = b.role,
-        bullets = bullets,
-        chips = chips,
+        "<div class=\"ov-top\"><p class=\"ov-name\">{name}</p><span class=\"ov-when\">{when}</span></div>\
+         <p class=\"ov-role\">{role}</p>\
+         <ul class=\"ov-list\">{bullets}</ul>\
+         <div class=\"ov-chips\">{chips}</div>",
+        name = b.name, when = b.when, role = b.role,
+        bullets = bullets, chips = chips,
+    ));
+}
+
+fn render_project_overlay(idx: usize) {
+    let cp = &CORE_PROJECTS[idx];
+    let Some(doc) = window().document() else { return };
+    let Some(el) = doc.get_element_by_id("ov-content") else { return };
+
+    if let Some(ov) = doc.get_element_by_id("overlay") {
+        let _ = ov.dyn_ref::<web_sys::HtmlElement>()
+            .map(|h| h.style().set_property("--accent", cp.kind.color()));
+    }
+
+    let bullets: String = cp.bullets.iter().map(|x| format!("<li>{}</li>", x)).collect();
+    let chips: String = cp.chips.iter()
+        .map(|c| format!("<span class=\"ov-chip\">{}</span>", c)).collect();
+
+    el.set_inner_html(&format!(
+        "<div class=\"ov-top\"><p class=\"ov-name\">{name}</p><span class=\"ov-when\">{when}</span></div>\
+         <p class=\"ov-role\">{role}</p>\
+         <ul class=\"ov-list\">{bullets}</ul>\
+         <div class=\"ov-chips\">{chips}</div>",
+        name = cp.name, when = cp.when, role = cp.role,
+        bullets = bullets, chips = chips,
+    ));
+}
+
+fn render_profile_overlay() {
+    let Some(doc) = window().document() else { return };
+    let Some(el) = doc.get_element_by_id("ov-content") else { return };
+
+    if let Some(ov) = doc.get_element_by_id("overlay") {
+        let _ = ov.dyn_ref::<web_sys::HtmlElement>()
+            .map(|h| h.style().set_property("--accent", "#EDEAE2"));
+    }
+
+    let edu: String = CORE_PROFILE.education.iter()
+        .map(|e| format!("<li>{}</li>", e)).collect();
+    let beliefs: String = CORE_PROFILE.beliefs.iter()
+        .map(|b| format!("<li>{}</li>", b)).collect();
+
+    el.set_inner_html(&format!(
+        "<h2 class=\"ov-heading\">EDUCATION</h2>\
+         <ul class=\"ov-list\">{edu}</ul>\
+         <h2 class=\"ov-heading\">BELIEFS</h2>\
+         <ul class=\"ov-list\">{beliefs}</ul>",
+        edu = edu, beliefs = beliefs,
     ));
 }
 
@@ -125,23 +223,52 @@ pub fn start() -> Result<(), JsValue> {
         sim: Sim::new(),
         renderer,
         canvas: canvas.clone(),
-        selected: Some(0),
         hovered: None,
         pointer: (-9999.0, -9999.0),
         running: true,
         last: now(),
         dragging: false,
         drag_last: (0.0, 0.0),
+        drag_start: (0.0, 0.0),
+        zoom: 0.0,
+        zoom_target: 0.0,
+        zoom_level: 0,
+        overlay_open: false,
     }));
 
     app.borrow_mut().resize();
-    orbital_select(BODIES[0].id);
     APP.with(|a| *a.borrow_mut() = Some(app.clone()));
 
     // resize
     {
         let cb = Closure::<dyn FnMut()>::new(move || with_app(|app| app.resize()));
         window().add_event_listener_with_callback("resize", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    // overlay close button
+    {
+        let cb = Closure::<dyn FnMut()>::new(move || with_app(|app| app.close_overlay()));
+        if let Some(btn) = document.get_element_by_id("ov-close") {
+            btn.add_event_listener_with_callback("click", cb.as_ref().unchecked_ref())?;
+        }
+        cb.forget();
+    }
+
+    // Escape key — layered: overlay → zoom → nothing
+    {
+        let cb = Closure::<dyn FnMut(KeyboardEvent)>::new(move |e: KeyboardEvent| {
+            if e.key() == "Escape" {
+                with_app(|app| {
+                    if app.overlay_open {
+                        app.close_overlay();
+                    } else if app.zoom_level > 0 {
+                        app.zoom_out();
+                    }
+                });
+            }
+        });
+        window().add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref())?;
         cb.forget();
     }
 
@@ -185,7 +312,7 @@ pub fn start() -> Result<(), JsValue> {
         cb.forget();
     }
 
-    // pointer down → select or start drag
+    // pointer down
     {
         let canvas2 = canvas.clone();
         let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |e: PointerEvent| {
@@ -193,13 +320,34 @@ pub fn start() -> Result<(), JsValue> {
             let x = e.client_x() as f32 - rect.left() as f32;
             let y = e.client_y() as f32 - rect.top() as f32;
             let cx = e.client_x() as f32;
+            let cy = e.client_y() as f32;
             with_app(|app| {
-                if let Some(i) = app.sim.hit(x, y) {
-                    app.select(i);
+                app.drag_start = (cx, cy);
+
+                if app.zoom_level == 0 {
+                    if let Some(hit) = app.sim.core_hit(x, y) {
+                        match hit {
+                            CoreHit::Core => app.zoom_in(),
+                            CoreHit::Project(_) => app.zoom_in(),
+                        }
+                    } else if let Some(i) = app.sim.hit(x, y) {
+                        app.open_overlay_body(i);
+                    } else {
+                        app.dragging = true;
+                        app.drag_last = (cx, cy);
+                        let _ = app.canvas.style().set_property("cursor", "grabbing");
+                    }
                 } else {
-                    app.dragging = true;
-                    app.drag_last = (cx, e.client_y() as f32);
-                    let _ = app.canvas.style().set_property("cursor", "grabbing");
+                    // Zoom level 1
+                    if let Some(hit) = app.sim.core_hit(x, y) {
+                        match hit {
+                            CoreHit::Core => app.open_overlay_profile(),
+                            CoreHit::Project(i) => app.open_overlay_project(i),
+                        }
+                    } else {
+                        app.dragging = true;
+                        app.drag_last = (cx, cy);
+                    }
                 }
             });
         });
@@ -207,10 +355,20 @@ pub fn start() -> Result<(), JsValue> {
         cb.forget();
     }
 
-    // pointer up → stop drag
+    // pointer up — short click on empty space zooms out
     {
-        let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |_: PointerEvent| {
+        let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |e: PointerEvent| {
             with_app(|app| {
+                let cx = e.client_x() as f32;
+                let cy = e.client_y() as f32;
+                let dx = cx - app.drag_start.0;
+                let dy = cy - app.drag_start.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+
+                if app.dragging && dist < 5.0 && app.zoom_level > 0 {
+                    app.zoom_out();
+                }
+
                 app.dragging = false;
                 let _ = app.canvas.style().set_property("cursor", "grab");
             });
@@ -236,6 +394,13 @@ pub fn start() -> Result<(), JsValue> {
 #[wasm_bindgen]
 pub fn select_by_id(id: &str) {
     if let Some(i) = BODIES.iter().position(|b| b.id == id) {
-        with_app(|app| app.select(i));
+        with_app(|app| app.open_overlay_body(i));
+        return;
+    }
+    if let Some(i) = CORE_PROJECTS.iter().position(|cp| cp.id == id) {
+        with_app(|app| {
+            app.zoom_in();
+            app.open_overlay_project(i);
+        });
     }
 }

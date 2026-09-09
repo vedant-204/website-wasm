@@ -1,4 +1,4 @@
-use crate::data::{Body, BODIES, SKILLS};
+use crate::data::{Body, BODIES, CORE_PROJECTS, SKILLS};
 
 pub const FLAT: f32 = 0.60;
 const TRAIL_LEN: usize = 150;
@@ -19,9 +19,22 @@ pub struct SkillState {
     pub radius: f32,
 }
 
+pub struct CoreProjectState {
+    pub angle: f32,
+    pub radius: f32,
+    pub moon_angles: Vec<f32>,
+}
+
+pub enum CoreHit {
+    Core,
+    Project(usize),
+}
+
 pub struct Sim {
     pub bodies: Vec<BodyState>,
     pub skills: Vec<SkillState>,
+    pub core_projects: Vec<CoreProjectState>,
+    pub core_radius: f32,
     pub t: f32,
     pub speed: f32,
     pub cx: f32,
@@ -56,7 +69,21 @@ impl Sim {
             })
             .collect();
 
-        Sim { bodies, skills, t: 0.0, speed: 1.0, cx: 0.0, cy: 0.0, scale: 1.0, cam_az: 0.0, cam_tilt: 0.0 }
+        let core_projects = CORE_PROJECTS
+            .iter()
+            .enumerate()
+            .map(|(i, cp)| CoreProjectState {
+                angle: i as f32 * std::f32::consts::PI,
+                radius: 4.0 + cp.mass * 1.2,
+                moon_angles: cp.moons.iter().enumerate().map(|(j, _)| j as f32 * 2.1).collect(),
+            })
+            .collect();
+
+        Sim {
+            bodies, skills, core_projects, core_radius: 14.0,
+            t: 0.0, speed: 1.0, cx: 0.0, cy: 0.0, scale: 1.0,
+            cam_az: 0.0, cam_tilt: 0.0,
+        }
     }
 
     pub fn resize(&mut self, w: f32, h: f32) {
@@ -119,6 +146,17 @@ impl Sim {
             }
         }
 
+        // Core projects orbit the centre
+        if dt > 0.0 {
+            for (i, cp) in CORE_PROJECTS.iter().enumerate() {
+                let cps = &mut self.core_projects[i];
+                cps.angle += dt * cp.speed * self.speed * 0.3;
+                for (j, moon) in cp.moons.iter().enumerate() {
+                    cps.moon_angles[j] += dt * moon.speed * self.speed;
+                }
+            }
+        }
+
         if dt > 0.0 {
             for s in &mut self.skills {
                 s.angle += dt * 0.022 * self.speed;
@@ -135,6 +173,32 @@ impl Sim {
             }
         }
         best.map(|(i, _)| i)
+    }
+
+    /// Hit-test the core and its project moons. Coords should be in world space.
+    pub fn core_hit(&self, px: f32, py: f32) -> Option<CoreHit> {
+        let flat = self.flat();
+        // Check core body first — it always wins within its radius
+        let core_d = ((self.cx - px).powi(2) + (self.cy - py).powi(2)).sqrt();
+        if core_d < self.core_radius + 8.0 {
+            return Some(CoreHit::Core);
+        }
+        // Then check core projects
+        for (i, cp) in CORE_PROJECTS.iter().enumerate() {
+            let cps = &self.core_projects[i];
+            let r = cp.dist * self.scale;
+            let proj_x = self.cx + cps.angle.cos() * r;
+            let proj_y = self.cy + cps.angle.sin() * r * flat;
+            let d = ((proj_x - px).powi(2) + (proj_y - py).powi(2)).sqrt();
+            if d < cps.radius + 15.0 {
+                return Some(CoreHit::Project(i));
+            }
+        }
+        // Generous outer ring for the core (catches clicks near it)
+        if core_d < self.core_radius + 25.0 {
+            return Some(CoreHit::Core);
+        }
+        None
     }
 }
 
