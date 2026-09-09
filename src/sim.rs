@@ -1,19 +1,14 @@
-//! Kepler motion, trails and the skill belt. No rendering, no DOM — this
-//! module must stay testable with `cargo test` on the host target.
-
 use crate::data::{Body, BODIES, SKILLS};
 
-/// Vertical squash that fakes an inclined orbital plane.
 pub const FLAT: f32 = 0.60;
 const TRAIL_LEN: usize = 150;
 
 pub struct BodyState {
-    /// Eccentric anomaly.
     pub anom: f32,
-    /// Mean motion, derived from the semi-major axis (Kepler's third law).
     pub n: f32,
     pub x: f32,
     pub y: f32,
+    pub z: f32,
     pub radius: f32,
     pub trail: Vec<(f32, f32)>,
     pub moon_angles: Vec<f32>,
@@ -32,6 +27,8 @@ pub struct Sim {
     pub cx: f32,
     pub cy: f32,
     pub scale: f32,
+    pub cam_az: f32,
+    pub cam_tilt: f32,
 }
 
 impl Sim {
@@ -40,9 +37,10 @@ impl Sim {
             .iter()
             .map(|b| BodyState {
                 anom: b.phase,
-                n: 0.62 / b.a.powf(1.5),
+                n: 0.18 / b.a.powf(1.5),
                 x: 0.0,
                 y: 0.0,
+                z: 0.0,
                 radius: 4.0 + b.mass * 1.55,
                 trail: Vec::with_capacity(TRAIL_LEN),
                 moon_angles: b.moons.iter().enumerate().map(|(i, _)| i as f32 * 2.1).collect(),
@@ -58,7 +56,7 @@ impl Sim {
             })
             .collect();
 
-        Sim { bodies, skills, t: 0.0, speed: 1.0, cx: 0.0, cy: 0.0, scale: 1.0 }
+        Sim { bodies, skills, t: 0.0, speed: 1.0, cx: 0.0, cy: 0.0, scale: 1.0, cam_az: 0.0, cam_tilt: 0.0 }
     }
 
     pub fn resize(&mut self, w: f32, h: f32) {
@@ -70,44 +68,64 @@ impl Sim {
         }
     }
 
-    /// Position on the ellipse for a given eccentric anomaly, in screen space.
+    pub fn flat(&self) -> f32 {
+        (FLAT + self.cam_tilt).clamp(0.30, 0.85)
+    }
+
+    pub fn rotate_camera(&mut self, daz: f32, dtilt: f32) {
+        self.cam_az += daz;
+        self.cam_tilt = (self.cam_tilt + dtilt).clamp(-0.30, 0.25);
+    }
+
     pub fn place(&self, body: &Body, anom: f32) -> (f32, f32) {
+        let flat = self.flat();
         let px = body.a * self.scale * (anom.cos() - body.e);
         let py = body.a * self.scale * (1.0 - body.e * body.e).sqrt() * anom.sin();
         let (s, c) = body.tilt.sin_cos();
-        (self.cx + px * c - py * s, self.cy + (px * s + py * c) * FLAT)
+        let xo = px * c - py * s;
+        let yo = px * s + py * c;
+        let (sa, ca) = self.cam_az.sin_cos();
+        (self.cx + xo * ca - yo * sa, self.cy + (xo * sa + yo * ca) * flat)
     }
 
     pub fn step(&mut self, dt: f32) {
         self.t += dt;
+        let (sa, ca) = self.cam_az.sin_cos();
+        let flat = self.flat();
         for (i, body) in BODIES.iter().enumerate() {
             let st = &mut self.bodies[i];
-
-            // Kepler's second law, cheaply: sweep faster near periapsis.
-            st.anom += dt * st.n * self.speed / (1.0 - body.e * st.anom.cos());
+            if dt > 0.0 {
+                st.anom += dt * st.n * self.speed / (1.0 - body.e * st.anom.cos());
+            }
 
             let px = body.a * self.scale * (st.anom.cos() - body.e);
             let py = body.a * self.scale * (1.0 - body.e * body.e).sqrt() * st.anom.sin();
             let (s, c) = body.tilt.sin_cos();
-            st.x = self.cx + px * c - py * s;
-            st.y = self.cy + (px * s + py * c) * FLAT;
+            let xo = px * c - py * s;
+            let yo = px * s + py * c;
+            st.x = self.cx + xo * ca - yo * sa;
+            let raw_y = xo * sa + yo * ca;
+            st.y = self.cy + raw_y * flat;
+            st.z = raw_y;
 
-            st.trail.push((st.x, st.y));
-            if st.trail.len() > TRAIL_LEN {
-                st.trail.remove(0);
-            }
-
-            for (j, moon) in body.moons.iter().enumerate() {
-                st.moon_angles[j] += dt * moon.speed * self.speed;
+            if dt > 0.0 {
+                st.trail.push((st.x, st.y));
+                if st.trail.len() > TRAIL_LEN {
+                    st.trail.remove(0);
+                }
+                for (j, moon) in body.moons.iter().enumerate() {
+                    st.moon_angles[j] += dt * moon.speed * self.speed;
+                }
             }
         }
 
-        for s in &mut self.skills {
-            s.angle += dt * 0.045 * self.speed;
+        if dt > 0.0 {
+            for s in &mut self.skills {
+                s.angle += dt * 0.022 * self.speed;
+            }
         }
     }
 
-    /// Index of the body under a screen point, if any.
     pub fn hit(&self, px: f32, py: f32) -> Option<usize> {
         let mut best: Option<(usize, f32)> = None;
         for (i, st) in self.bodies.iter().enumerate() {
@@ -143,7 +161,6 @@ mod tests {
     fn inner_bodies_orbit_faster() {
         let sim = Sim::new();
         for w in sim.bodies.windows(2) {
-            // BODIES is not sorted by `a`, so just assert the law itself holds.
             assert!(w[0].n > 0.0 && w[1].n > 0.0);
         }
     }

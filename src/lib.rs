@@ -1,9 +1,3 @@
-//! Entry point and the JS boundary.
-//!
-//! Rust owns the canvas: simulation, rendering, hit-testing. The DOM owns the
-//! detail panel, because canvas text is invisible to screen readers, crawlers
-//! and text selection. The only thing crossing the boundary is a body id.
-
 mod data;
 mod render;
 mod sim;
@@ -21,7 +15,6 @@ use sim::Sim;
 
 #[wasm_bindgen]
 extern "C" {
-    /// Defined in index.html. Receives the id of the newly locked body.
     #[wasm_bindgen(js_namespace = window, js_name = orbitalSelect)]
     fn orbital_select(id: &str);
 }
@@ -35,6 +28,8 @@ struct App {
     pointer: (f32, f32),
     running: bool,
     last: f64,
+    dragging: bool,
+    drag_last: (f32, f32),
 }
 
 thread_local! {
@@ -63,9 +58,7 @@ impl App {
     fn frame(&mut self, t: f64) {
         let dt = ((t - self.last) / 1000.0).min(0.05) as f32;
         self.last = t;
-        if self.running {
-            self.sim.step(dt);
-        }
+        self.sim.step(if self.running { dt } else { 0.0 });
         let scene = Scene {
             sim: &self.sim,
             selected: self.selected,
@@ -83,8 +76,6 @@ impl App {
     }
 }
 
-/// Writes the detail panel into the DOM. Content is static and authored in
-/// `data.rs`, so `set_inner_html` is safe here — never feed it fetched data.
 fn render_panel(idx: usize) {
     let b = &BODIES[idx];
     let Some(doc) = window().document() else { return };
@@ -139,6 +130,8 @@ pub fn start() -> Result<(), JsValue> {
         pointer: (-9999.0, -9999.0),
         running: true,
         last: now(),
+        dragging: false,
+        drag_last: (0.0, 0.0),
     }));
 
     app.borrow_mut().resize();
@@ -152,17 +145,26 @@ pub fn start() -> Result<(), JsValue> {
         cb.forget();
     }
 
-    // pointer move → hover + belt proximity
+    // pointer move → drag or hover
     {
         let target = canvas.clone();
         let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |e: PointerEvent| {
             let rect = target.get_bounding_client_rect();
             let x = e.client_x() as f32 - rect.left() as f32;
             let y = e.client_y() as f32 - rect.top() as f32;
+            let cx = e.client_x() as f32;
+            let cy = e.client_y() as f32;
             with_app(|app| {
+                if app.dragging {
+                    let dx = (cx - app.drag_last.0) / 200.0;
+                    let dy = (cy - app.drag_last.1) / 300.0;
+                    app.sim.rotate_camera(dx, -dy);
+                    app.drag_last = (cx, cy);
+                    return;
+                }
                 app.pointer = (x, y);
                 app.hovered = app.sim.hit(x, y);
-                let cursor = if app.hovered.is_some() { "pointer" } else { "default" };
+                let cursor = if app.hovered.is_some() { "pointer" } else { "grab" };
                 let _ = app.canvas.style().set_property("cursor", cursor);
             });
         });
@@ -176,26 +178,44 @@ pub fn start() -> Result<(), JsValue> {
             with_app(|app| {
                 app.hovered = None;
                 app.pointer = (-9999.0, -9999.0);
+                app.dragging = false;
             });
         });
         canvas.add_event_listener_with_callback("pointerleave", cb.as_ref().unchecked_ref())?;
         cb.forget();
     }
 
-    // pointer down → lock
+    // pointer down → select or start drag
     {
         let canvas2 = canvas.clone();
         let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |e: PointerEvent| {
             let rect = canvas2.get_bounding_client_rect();
             let x = e.client_x() as f32 - rect.left() as f32;
             let y = e.client_y() as f32 - rect.top() as f32;
+            let cx = e.client_x() as f32;
             with_app(|app| {
                 if let Some(i) = app.sim.hit(x, y) {
                     app.select(i);
+                } else {
+                    app.dragging = true;
+                    app.drag_last = (cx, e.client_y() as f32);
+                    let _ = app.canvas.style().set_property("cursor", "grabbing");
                 }
             });
         });
         canvas.add_event_listener_with_callback("pointerdown", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    // pointer up → stop drag
+    {
+        let cb = Closure::<dyn FnMut(PointerEvent)>::new(move |_: PointerEvent| {
+            with_app(|app| {
+                app.dragging = false;
+                let _ = app.canvas.style().set_property("cursor", "grab");
+            });
+        });
+        canvas.add_event_listener_with_callback("pointerup", cb.as_ref().unchecked_ref())?;
         cb.forget();
     }
 
@@ -213,7 +233,6 @@ pub fn start() -> Result<(), JsValue> {
     Ok(())
 }
 
-/// Lock a body by id — used for deep links (`/#lia`).
 #[wasm_bindgen]
 pub fn select_by_id(id: &str) {
     if let Some(i) = BODIES.iter().position(|b| b.id == id) {
