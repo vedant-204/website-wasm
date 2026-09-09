@@ -71,6 +71,8 @@ pub const BODIES: &[Body] = &[
             "Designed and shipped LIFT AI — Google Ads, Meta and Shopify data turned into analyst-grade reports, replacing hours of manual reporting per account each week.",
             "Owns a Redis-backed distributed concurrency layer: atomic execution gates, heartbeat monitoring, three pools with differentiated TTLs across a multi-pod Kubernetes deployment.",
             "Eliminated a class of LLM output failures by tracing phantom dimension values and broken pacing tables to tool-layer key mismatches; shipped a three-tier normalisation fallback.",
+            "Built LIFT AI MFE, the micro-frontend shell (React, Module Federation, TypeScript) hosting the platform inside NewEngen\u{2019}s existing app: independently deployable, with live SSE streaming so users watch analysis unfold rather than waiting on a spinner.",
+            "Owned delivery of a data taxonomy tool serving 150+ international brands (Python, GraphQL, PostgreSQL over large-scale pipelines), working directly with marketing strategists to shape the model around how they name and group campaigns.",
         ],
         chips: &["Claude", "Agno", "FastAPI", "BigQuery", "Vertex AI", "Kubernetes", "Redis"],
         moons: &[
